@@ -1,7 +1,8 @@
 from __future__ import annotations
 from typing import List
-from user import Usuario
-
+from models.User import Usuario
+from Advertisement import Anuncio
+from Vehicle import Veiculo
 
 class Anunciante(Usuario):
     _auto_id = 1

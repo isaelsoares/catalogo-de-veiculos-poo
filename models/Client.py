@@ -1,5 +1,5 @@
 from typing import List
-from car import Veiculo   
+from models.Vehicle import Veiculo   
 
 class Cliente:
     _proximo_id = 1 

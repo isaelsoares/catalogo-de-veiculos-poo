@@ -1,4 +1,4 @@
-from car import Veiculo
+from models.Vehicle import Veiculo
 from announcer import Anunciante
 class Anuncio:
     _proximo_id = 1

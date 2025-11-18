@@ -1,4 +1,4 @@
-from user import Usuario
+from models.User import Usuario
 from Advertisement import Anuncio
 
 
