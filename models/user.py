@@ -3,8 +3,16 @@ from abc import ABC, abstractmethod
 
 
 class Usuario(ABC):
-    def __init__(self, id: int, cpf: int, nome: str, email: str, senha: str) -> None:
-        self._id = id
+    _proximo_id = 1
+
+    def __init__(self, id: int | None = None, cpf: int = 0, nome: str = "", email: str = "", senha: str = "") -> None:
+        if id is None:
+            self._id = Usuario._proximo_id
+            Usuario._proximo_id += 1
+        else:
+            self._id = id
+            if id >= Usuario._proximo_id:
+                Usuario._proximo_id = id + 1
         self._cpf = cpf
         self._nome = nome
         self._email = email
