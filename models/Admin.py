@@ -1,5 +1,5 @@
-from user import Usuario
-from Advertisement import Anuncio
+from models.User import Usuario
+from models.Advertisement import Anuncio
 
 
 class Admin(Usuario):

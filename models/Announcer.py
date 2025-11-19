@@ -1,7 +1,8 @@
 from __future__ import annotations
 from typing import List
-from user import Usuario
-
+from models.User import Usuario
+from models.Advertisement import Anuncio
+from models.Vehicle import Veiculo
 
 class Anunciante(Usuario):
     _auto_id = 1
@@ -24,7 +25,9 @@ class Anunciante(Usuario):
         self._telefone = valor
 
     def criarAnuncio(self, v: Veiculo) -> Anuncio:
-        anuncio = Anuncio(v, self)
+        from datetime import datetime
+        data_atual = datetime.now().strftime("%Y-%m-%d")
+        anuncio = Anuncio(data_atual, "Pendente", v, self)
         self._listaAnuncios.append(anuncio)
         return anuncio
 
