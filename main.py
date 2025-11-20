@@ -68,13 +68,14 @@ def CadastroUsuario(tipo, nome, email, senha, telefone=None):
     else:
         raise ValueError("Use a função de fluxo CLI para cadastrar (precisa de CPF).")
 
-def Login(nome, senha):
+def Login(email, senha):
     # Retorna o objeto de usuário quando login bem-sucedido, senão None
     for i in userList:
+        # usa o método `login` definido em Usuario
         try:
-            if nome == i.nome and senha == i.senha:
+            if hasattr(i, 'login') and i.login(email, senha):
                 return i
-        except AttributeError:
+        except Exception:
             continue
     return None
     
@@ -112,9 +113,9 @@ def register_user_flow():
 
 def login_flow():
     print("--- Login ---")
-    nome = _input("Nome: ").strip()
+    email = _input("Email: ").strip()
     senha = _input("Senha: ").strip()
-    user = Login(nome, senha)
+    user = Login(email, senha)
     if user:
         print(f"Logado como: {user.nome}")
         return user
