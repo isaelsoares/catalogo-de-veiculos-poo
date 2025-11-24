@@ -19,7 +19,7 @@ def actions():
 
 
 def CreateAdmin(cpf, nome, email, senha, adminID) -> Admin:
-    return Admin(
+    a = Admin(
         id = None,
         cpf=cpf,
         nome=nome,
@@ -27,6 +27,9 @@ def CreateAdmin(cpf, nome, email, senha, adminID) -> Admin:
         senha=senha,
         adminID=adminID   
     )
+    adminList.append(a)
+    userList.append(a)
+    return a
 
 def CreateAnunciante(cpf, nome, email, senha, telefone=None) -> Anunciante: 
     a = Anunciante(
@@ -49,15 +52,15 @@ def CreateCliente(cpf, nome, email, senha) -> Cliente:
     clienteList.append(c)
     return c
 
-def CreateVeiculo(marca, modelo, ano, preco, km):
+def CreateVeiculo(marca, modelo, ano, preco, km, anunciante=None):
     v = Veiculo(
-        marca=marca, 
+        marca=marca,
         modelo=modelo,
         ano=ano,
         preco=preco,
-        quilometragem=km
+        quilometragem=km,
+        anunciante=anunciante,
     )
-    veiculoList.append(v)
     return v
 
 
@@ -67,6 +70,138 @@ def CadastroUsuario(tipo, nome, email, senha, telefone=None):
         raise ValueError("Use a função de fluxo CLI para cadastrar (precisa de CPF).")
     else:
         raise ValueError("Use a função de fluxo CLI para cadastrar (precisa de CPF).")
+
+
+def anunciante_manage_flow(current_user):
+    if not current_user or not hasattr(current_user, 'listarMeusAnuncios'):
+        print("Acesso negado. Apenas anunciantes.")
+        return
+    while True:
+        print("\n--- Gerenciar Meus Anúncios ---")
+        print("1. Listar meus anúncios")
+        print("2. Excluir anúncio")
+        print("0. Voltar")
+        op = _input("Escolha: ").strip()
+        if op == '1':
+            lista = current_user.listarMeusAnuncios()
+            if not lista:
+                print("Nenhum anúncio encontrado.")
+            for a in lista:
+                try:
+                    v = a.veiculo
+                    print(f"ID:{a.id} | {v.marca} {v.modelo} ({v.ano}) | Status: {a.status}")
+                except Exception:
+                    print(repr(a))
+        elif op == '2':
+            id_str = _input("ID do anúncio para excluir: ").strip()
+            try:
+                aid = int(id_str)
+            except Exception:
+                print("ID inválido.")
+                continue
+            ok = current_user.excluirAnuncio(aid)
+            if ok:
+                # remover da lista global de anúncios também
+                anuncio = next((x for x in anuncioList if x.id == aid), None)
+                if anuncio:
+                    anuncioList.remove(anuncio)
+                print("Anúncio excluído.")
+            else:
+                print("Anúncio não encontrado ou erro.")
+        elif op == '0':
+            break
+        else:
+            print("Opção inválida.")
+
+
+def search_announcements(current_user):
+    # Clientes should be able to search anúncios
+    if not current_user or not hasattr(current_user, 'buscarVeiculos'):
+        print("Acesso negado. Apenas clientes.")
+        return
+    filtro = _input("Filtro (marca/modelo): ").strip()
+    resultados = [a for a in anuncioList if filtro.lower() in a.veiculo.marca.lower() or filtro.lower() in a.veiculo.modelo.lower()]
+    if not resultados:
+        print("Nenhum anúncio encontrado.")
+        return
+    for a in resultados:
+        v = a.veiculo
+        print(f"ID anúncio:{a.id} | Veículo: {v.marca} {v.modelo} ({v.ano}) | Anunciante: {getattr(a.anunciante,'nome','Desconhecido')} | Status: {a.status}")
+    escolha = _input("Ver detalhes do anúncio ID? (vazio para voltar): ").strip()
+    if escolha:
+        try:
+            aid = int(escolha)
+            a = next((x for x in anuncioList if x.id == aid), None)
+            if a:
+                print(a.exibirResumo())
+            else:
+                print("Anúncio não encontrado.")
+        except Exception:
+            print("Entrada inválida.")
+
+
+def admin_manage_flow(current_user):
+    if not current_user or not isinstance(current_user, Admin):
+        print("Acesso negado. Área restrita a administradores.")
+        return
+    while True:
+        print("\n--- Painel do Admin ---")
+        print("1. Listar anúncios pendentes")
+        print("2. Aprovar anúncio")
+        print("3. Rejeitar anúncio")
+        print("4. Gerenciar usuários (listar/excluir)")
+        print("0. Voltar")
+        op = _input("Escolha: ").strip()
+        if op == '1':
+            pendentes = [a for a in anuncioList if a.status.lower() == 'pendente']
+            if not pendentes:
+                print("Nenhum anúncio pendente.")
+            for a in pendentes:
+                v = a.veiculo
+                print(f"ID:{a.id} | {v.marca} {v.modelo} ({v.ano}) | Anunciante: {getattr(a.anunciante,'nome', 'Desconhecido')}")
+        elif op in ('2', '3'):
+            id_str = _input("ID do anúncio: ").strip()
+            try:
+                aid = int(id_str)
+            except Exception:
+                print("ID inválido.")
+                continue
+            anuncio = next((x for x in anuncioList if x.id == aid), None)
+            if not anuncio:
+                print("Anúncio não encontrado.")
+                continue
+            if op == '2':
+                current_user.aprovarAnuncio(anuncio)
+                print("Anúncio aprovado.")
+            else:
+                current_user.rejeitarAnuncio(anuncio)
+                print("Anúncio rejeitado.")
+        elif op == '4':
+            print("Usuários cadastrados:")
+            for idx, u in enumerate(userList, start=1):
+                print(f"{idx}. {getattr(u,'nome', repr(u))} ({u.__class__.__name__})")
+            escolha = _input("Excluir usuário número (vazio para voltar): ").strip()
+            if not escolha:
+                continue
+            try:
+                ui = int(escolha)-1
+                usuario = userList[ui]
+            except Exception:
+                print("Escolha inválida.")
+                continue
+            msg = current_user.gerenciarUsuario('deletar', usuario, None, userList)
+            # também remover de listas específicas
+            if usuario in anuncianteList:
+                anuncianteList.remove(usuario)
+            if usuario in clienteList:
+                clienteList.remove(usuario)
+            if usuario in adminList:
+                adminList.remove(usuario)
+            print(msg)
+        elif op == '0':
+            break
+        else:
+            print("Opção inválida.")
 
 def Login(email, senha):
     # Retorna o objeto de usuário quando login bem-sucedido, senão None
@@ -125,19 +260,9 @@ def login_flow():
 
 
 def create_vehicle_flow():
-    print("--- Cadastrar Veículo ---")
-    marca = _input("Marca: ").strip()
-    modelo = _input("Modelo: ").strip()
-    ano = _input("Ano: ").strip()
-    preco = _input("Preço: ").strip()
-    km = _input("Quilometragem: ").strip()
-    try:
-        v = CreateVeiculo(marca, modelo, ano, preco, km)
-        print(f"Veículo criado: {v.marca} {v.modelo}")
-        return v
-    except Exception as e:
-        print("Erro ao criar veículo:", e)
-        return None
+    # legacy: keep signature without owner for compatibility
+    print("--- Cadastrar Veículo (use o fluxo do usuário logado) ---")
+    return None
 
 
 def create_ad_flow(current_user):
@@ -151,18 +276,32 @@ def create_ad_flow(current_user):
     print("--- Criar Anúncio ---")
     # Permitir usar um veículo já cadastrado ou criar novo
     escolha = _input("Usar veículo existente? (s/n): ").strip().lower()
-    if escolha == 's' and veiculoList:
-        for idx, v in enumerate(veiculoList, start=1):
-            print(f"{idx}: {v.marca} {v.modelo} ({v.ano}) - {v.quilometragem}km - {v.preco}")
-        sel = _input("Escolha número do veículo: ").strip()
-        try:
-            v = veiculoList[int(sel)-1]
-        except Exception:
-            print("Seleção inválida.")
-            return
+    if escolha == 's':
+        meus = [v for v in veiculoList if getattr(v, 'anunciante', None) == current_user]
+        if not meus:
+            print("Você não possui veículos cadastrados. Crie um novo.")
+            v = None
+        else:
+            for idx, v0 in enumerate(meus, start=1):
+                print(f"{idx}: {v0.marca} {v0.modelo} ({v0.ano}) - {v0.quilometragem}km - {v0.preco}")
+            sel = _input("Escolha número do veículo: ").strip()
+            try:
+                v = meus[int(sel)-1]
+            except Exception:
+                print("Seleção inválida.")
+                return
     else:
-        v = create_vehicle_flow()
-        if not v:
+        # criar veículo pertencente ao anunciante
+        marca = _input("Marca: ").strip()
+        modelo = _input("Modelo: ").strip()
+        ano = _input("Ano: ").strip()
+        preco = _input("Preço: ").strip()
+        km = _input("Quilometragem: ").strip()
+        try:
+            v = CreateVeiculo(marca, modelo, ano, preco, km, anunciante=current_user)
+            veiculoList.append(v)
+        except Exception as e:
+            print("Erro ao criar veículo:", e)
             return
     msg = AnuncianteCriarAnuncio(current_user, v)
     print(msg)
@@ -182,13 +321,17 @@ def list_announcements():
             print(repr(a))
 
 
-def list_vehicles():
-    print("--- Veículos ---")
-    if not veiculoList:
-        print("Nenhum veículo cadastrado.")
+def list_my_vehicles(current_user):
+    print("--- Meus Veículos ---")
+    if not current_user or not hasattr(current_user, 'criarAnuncio'):
+        print("Acesso negado. Apenas anunciantes.")
         return
-    for v in veiculoList:
-        print(f"{v.marca} {v.modelo} ({v.ano}) - {v.quilometragem}km - {v.preco}")
+    meus = [v for v in veiculoList if getattr(v, 'anunciante', None) == current_user]
+    if not meus:
+        print("Você não possui veículos cadastrados.")
+        return
+    for v in meus:
+        print(f"ID:{v.id} | {v.marca} {v.modelo} ({v.ano}) - {v.quilometragem}km - {v.preco}")
 
 
 def main():
@@ -200,8 +343,11 @@ def main():
         print("3. Cadastrar veículo")
         print("4. Criar anúncio (anunciantes)")
         print("5. Listar anúncios")
-        print("6. Listar veículos")
+        print("6. Listar meus veículos (anunciantes)")
         print("7. Logout")
+        print("8. Gerenciar meus anúncios (anunciantes)")
+        print("9. Buscar veículos (clientes)")
+        print("10. Painel Admin")
         print("0. Sair")
         opc = _input("Escolha uma opção: ").strip()
         if opc == '1':
@@ -211,15 +357,34 @@ def main():
             if user:
                 current_user = user
         elif opc == '3':
-            v = create_vehicle_flow()
-            if v:
-                veiculoList.append(v)
+            # Cadastrar veículo: apenas anunciantes logados
+            if not current_user or not hasattr(current_user, 'criarAnuncio'):
+                print("Apenas anunciantes podem cadastrar veículos.")
+            else:
+                print("--- Cadastrar Veículo ---")
+                marca = _input("Marca: ").strip()
+                modelo = _input("Modelo: ").strip()
+                ano = _input("Ano: ").strip()
+                preco = _input("Preço: ").strip()
+                km = _input("Quilometragem: ").strip()
+                try:
+                    v = CreateVeiculo(marca, modelo, ano, preco, km, anunciante=current_user)
+                    veiculoList.append(v)
+                    print(f"Veículo criado: {v.marca} {v.modelo}")
+                except Exception as e:
+                    print("Erro ao criar veículo:", e)
         elif opc == '4':
             create_ad_flow(current_user)
         elif opc == '5':
             list_announcements()
         elif opc == '6':
-            list_vehicles()
+            list_my_vehicles(current_user)
+        elif opc == '8':
+            anunciante_manage_flow(current_user)
+        elif opc == '9':
+            search_announcements(current_user)
+        elif opc == '10':
+            admin_manage_flow(current_user)
         elif opc == '7':
             current_user = None
             print("Desconectado.")
