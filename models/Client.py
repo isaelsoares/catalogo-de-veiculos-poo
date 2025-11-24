@@ -1,18 +1,15 @@
 from typing import List
-from models.Vehicle import Veiculo   
+from models.Vehicle import Veiculo
+from models.User import Usuario
 
-class Cliente:
-    _proximo_id = 1 
 
-    def __init__(self):
-        self._id = Cliente._proximo_id
+class Cliente(Usuario):
+    _proximo_id = 1
+
+    def __init__(self, cpf: int, nome: str, email: str, senha: str) -> None:
+        super().__init__(Cliente._proximo_id, cpf, nome, email, senha)
         Cliente._proximo_id += 1
-
         self._historicoPesquisas: List[str] = []
-
-    @property
-    def id(self) -> int:
-        return self._id
 
     @property
     def historicoPesquisas(self) -> List[str]:
@@ -45,11 +42,14 @@ class Cliente:
                 return v
         return None
 
-    def exibirPerfil(self) -> str:
+    def exibirPerfil(self, info: str = "") -> str:
         """
         Override: exibe informações sobre o cliente.
         """
         return (
             f"Cliente ID: {self.id}\n"
-            f"Histórico de Pesquisas: {', '.join(self.historicoPesquisas) if self.historicoPesquisas else 'Nenhuma pesquisa realizada'}"
+            f"Nome: {self.nome}\n"
+            f"Email: {self.email}\n"
+            f"Histórico de Pesquisas: {', '.join(self.historicoPesquisas) if self.historicoPesquisas else 'Nenhuma pesquisa realizada'}\n"
+            f"{info}"
         )
