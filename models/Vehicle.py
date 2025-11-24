@@ -1,7 +1,7 @@
 class Veiculo:
     _proximo_id = 1   
 
-    def __init__(self, marca: str, modelo: str, ano: int, preco: float, quilometragem: int):
+    def __init__(self, marca: str, modelo: str, ano: int, preco: float, quilometragem: int, anunciante=None):
         self._id = Veiculo._proximo_id
         Veiculo._proximo_id += 1
 
@@ -10,6 +10,8 @@ class Veiculo:
         self._ano = ano
         self._preco = preco
         self._quilometragem = quilometragem
+        # cada veículo pode pertencer a um anunciante (ou None)
+        self._anunciante = anunciante
 
     @property
     def id(self) -> int:
@@ -55,6 +57,14 @@ class Veiculo:
     def quilometragem(self, valor: int):
         self._quilometragem = valor
 
+    @property
+    def anunciante(self):
+        return self._anunciante
+
+    @anunciante.setter
+    def anunciante(self, valor):
+        self._anunciante = valor
+
     def exibirInformacoes(self) -> str:
         return (
             f"ID: {self.id}\n"
@@ -62,5 +72,6 @@ class Veiculo:
             f"Modelo: {self.modelo}\n"
             f"Ano: {self.ano}\n"
             f"Preço: R${self.preco:.2f}\n"
-            f"Quilometragem: {self.quilometragem} km"
+            f"Quilometragem: {self.quilometragem} km\n"
+            f"Anunciante: {getattr(self.anunciante, 'nome', 'Nenhum')}"
         )
