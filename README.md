@@ -2,7 +2,38 @@
 
 ## 📋 Sobre o Projeto
 
-Este projeto implementa um **Sistema de Catálogo de Veículos** desenvolvido em Python utilizando os conceitos fundamentais de **Programação Orientada a Objetos (POO)**. O sistema simula uma plataforma de anúncios de veículos onde diferentes tipos de usuários podem interagir: clientes buscam veículos, anunciantes publicam anúncios e administradores gerenciam o sistema.
+Este projeto implementa um **Sistema de Catálogo de Veículos** completo desenvolvido em Python utilizando os conceitos fundamentais de **Programação Orientada a Objetos (POO)** e **persistência de dados com SQLite**. O sistema simula uma plataforma de anúncios de veículos onde diferentes tipos de usuários podem interagir:
+
+- **Clientes**: Buscam e visualizam veículos disponíveis
+- **Anunciantes**: Cadastram veículos e criam anúncios
+- **Administradores**: Gerenciam usuários e aprovam/rejeitam anúncios
+
+## ✨ Funcionalidades do Sistema
+
+### 👤 Para Todos os Usuários
+- ✅ Cadastro de novos usuários (Anunciantes ou Clientes)
+- ✅ Sistema de login/logout
+- ✅ Validação de CPF e email únicos
+- ✅ Proteção de senhas
+
+### 🏢 Para Anunciantes
+- ✅ Cadastrar veículos com informações detalhadas
+- ✅ Criar anúncios dos veículos cadastrados
+- ✅ Listar todos os seus veículos
+- ✅ Gerenciar anúncios (editar, excluir)
+- ✅ Visualizar status dos anúncios (Pendente, Aprovado, Rejeitado)
+
+### 🔍 Para Clientes
+- ✅ Buscar veículos por marca/modelo
+- ✅ Visualizar anúncios aprovados
+- ✅ Ver detalhes completos dos anúncios
+- ✅ Histórico de pesquisas salvo
+
+### 👨‍💼 Para Administradores
+- ✅ Visualizar anúncios pendentes
+- ✅ Aprovar ou rejeitar anúncios
+- ✅ Gerenciar usuários (listar e excluir)
+- ✅ Controle total sobre a plataforma
 
 ## 🎯 Conceitos de POO Utilizados
 
@@ -48,7 +79,7 @@ O sistema foi desenvolvido com base no modelo do arquivo _diagrama-de-classes.dr
 ```
 catalogo-de-veiculos-poo/
 │
-├── models/
+├── models/                  # Classes do domínio
 │   ├── Vehicle.py          # Classe Veiculo
 │   ├── User.py             # Classe abstrata Usuario
 │   ├── Client.py           # Classe Cliente
@@ -56,17 +87,27 @@ catalogo-de-veiculos-poo/
 │   ├── Admin.py            # Classe Admin (herda de Usuario)
 │   └── Advertisement.py    # Classe Anuncio
 │
-├── main.py                 # Arquivo principal (exemplo de uso)
+├── database.py             # Gerenciamento do banco SQLite
+├── repository.py           # Camada de acesso aos dados (Repositories)
+├── init_db.py             # Script de criação das tabelas
+├── demo_database.py        # Script para popular banco com dados de exemplo
+│
+├── main.py                 # Aplicação principal (interface CLI)
+├── interface.py            # Interface gráfica (opcional)
 ├── test.py                 # Testes completos do sistema
-└── README.md               # Este arquivo
+│
+├── requirements.txt        # Dependências do projeto
+├── README.md              # Este arquivo
+└── README_DATABASE.md     # Documentação do banco de dados
 ```
 
-## 🚀 Como Clonar e Executar
+## 🚀 Como Executar o Projeto
 
 ### Pré-requisitos
 
-- Python 3.8 ou superior instalado
-- Git instalado (para clonar o repositório)
+- **Python 3.10 ou superior** instalado
+- **SQLite3** (já incluído na biblioteca padrão do Python)
+- **Git** (para clonar o repositório)
 
 ### Passo 1: Clonar o Repositório
 
@@ -75,63 +116,105 @@ git clone https://github.com/isaelsoares/catalogo-de-veiculos-poo.git
 cd catalogo-de-veiculos-poo
 ```
 
-### Passo 2: Executar os Testes
+### Passo 2: Instalar Dependências (Opcional)
 
-O projeto inclui um arquivo `test.py` com uma bateria completa de testes para validar todas as funcionalidades:
+Se desejar usar a interface gráfica (`interface.py`), instale as dependências:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Passo 3: Executar o Sistema
+
+**Opção 1: Executar com banco vazio**
+```bash
+python main.py
+```
+
+**Opção 2: Popular banco com dados de exemplo**
+```bash
+python demo_database.py
+python main.py
+```
+
+O arquivo `demo_database.py` cria usuários e anúncios de exemplo para facilitar os testes:
+- **Admin**: admin@sistema.com / senha: admin123
+- **Anunciante**: joao@email.com / senha: senha123
+- **Cliente**: maria@email.com / senha: senha123
+
+### Passo 4: Navegação no Sistema
+
+Após executar `main.py`, você verá o menu principal:
+
+```
+=== Catálogo de Veículos ===
+1. Cadastrar usuário
+2. Login
+3. Cadastrar veículo
+4. Criar anúncio (anunciantes)
+5. Listar anúncios
+6. Listar meus veículos (anunciantes)
+7. Logout
+8. Gerenciar meus anúncios (anunciantes)
+9. Buscar veículos (clientes)
+10. Painel Admin
+0. Sair
+```
+
+#### Fluxo Recomendado para Teste:
+
+1. **Cadastre um usuário** (opção 1)
+   - Escolha tipo: 1 para Anunciante ou 2 para Cliente
+   - Informe CPF, nome, email e senha
+
+2. **Faça login** (opção 2)
+   - Use o email e senha cadastrados
+
+3. **Como Anunciante:**
+   - Cadastre veículos (opção 3)
+   - Crie anúncios dos veículos (opção 4)
+   - Gerencie seus anúncios (opção 8)
+
+4. **Como Cliente:**
+   - Busque veículos (opção 9)
+   - Visualize anúncios aprovados (opção 5)
+
+5. **Como Admin:**
+   - Acesse o painel admin (opção 10)
+   - Aprove ou rejeite anúncios pendentes
+   - Gerencie usuários
+
+### Passo 5: Executar Testes
+
+O projeto inclui testes completos em `test.py`:
 
 ```bash
 python test.py
 ```
 
-O arquivo de testes irá:
+Os testes validam:
+- ✅ Criação de veículos com dados válidos e inválidos
+- ✅ Funcionalidades de busca e visualização
+- ✅ Criação, listagem e exclusão de anúncios
+- ✅ Aprovação e rejeição por administradores
+- ✅ Autenticação e gerenciamento de usuários
+- ✅ Validações de dados (senhas, CPF único, etc.)
 
-- ✅ Testar criação de veículos com dados válidos e inválidos
-- ✅ Validar funcionalidades de busca e visualização de clientes
-- ✅ Testar criação, listagem e exclusão de anúncios
-- ✅ Validar aprovação e rejeição de anúncios por administradores
-- ✅ Testar autenticação e gerenciamento de usuários
-- ✅ Verificar validações de dados (senhas, nomes vazios, etc.)
+## 🗄️ Banco de Dados
 
-### Passo 3: Teste Manual das Classes
+O sistema utiliza **SQLite** para persistência de dados com as seguintes tabelas:
 
-Você também pode testar as classes individualmente no interpretador Python:
+- **usuarios**: Dados comuns (CPF, nome, email, senha, tipo)
+- **admins**: Dados específicos de administradores
+- **anunciantes**: Dados específicos (telefone)
+- **clientes**: Dados específicos dos clientes
+- **veiculos**: Informações dos veículos
+- **anuncios**: Anúncios com status (Pendente/Aprovado/Rejeitado)
+- **historico_pesquisas**: Buscas realizadas pelos clientes
 
-```bash
-python3
-```
+Para mais detalhes sobre o esquema do banco, consulte `README_DATABASE.md`.
 
-Depois, no interpretador Python:
-
-```python
-# Importar as classes
-from models.Vehicle import Veiculo
-from models.Client import Cliente
-from models.Announcer import Anunciante
-from models.Advertisement import Anuncio
-from models.Admin import Admin
-
-# Criar um veículo
-veiculo = Veiculo("Toyota", "Corolla", 2020, 85000.00, 50000)
-print(veiculo.exibirInformacoes())
-
-# Criar um cliente e buscar veículos
-cliente = Cliente()
-veiculos = [veiculo]
-resultados = cliente.buscarVeiculos("Toyota", veiculos)
-print(f"Encontrados: {len(resultados)} veículo(s)")
-
-# Criar um anunciante e publicar anúncio
-anunciante = Anunciante(12345678900, "João Silva", "joao@email.com", "senha123", "(11) 98765-4321")
-anuncio = anunciante.criarAnuncio(veiculo)
-print(anuncio.exibirResumo())
-
-# Criar admin e aprovar anúncio
-admin = Admin(1, 99999999999, "Admin", "admin@sistema.com", "admin123", 1001)
-admin.aprovarAnuncio(anuncio)
-print(f"Status do anúncio: {anuncio.status}")
-```
-
-## 📚 Exemplos de Uso
+## 📚 Exemplos de Uso Programático
 
 ### Criar e Gerenciar Veículos
 
@@ -142,7 +225,7 @@ from models.Vehicle import Veiculo
 carro = Veiculo("Honda", "Civic", 2019, 75000.00, 40000)
 
 # Acessar propriedades
-print(f"Marca: {carro.marca}")
+print(f"Marca: {carro.marca}")https://github.com/isaelsoares/catalogo-de-veiculos-poo/blob/master/README.md
 print(f"Preço: R${carro.preco:.2f}")
 
 # Modificar atributos
@@ -205,15 +288,29 @@ for v in resultados:
 print(f"Histórico: {cliente.historicoPesquisas}")
 ```
 
-## 🧪 Testes Disponíveis
+## 🔒 Segurança e Validações
 
-O arquivo `test.py` contém mais de 50 casos de teste cobrindo:
+O sistema implementa diversas validações:
 
-1. **Classe Veiculo**: criação, validações, tipos de dados
-2. **Classe Cliente**: busca, visualização, histórico
-3. **Classe Anunciante**: criação de anúncios, validações de telefone/nome
-4. **Classe Anuncio**: aprovação, rejeição, alteração de status
-5. **Classe Admin**: gerenciamento de usuários, aprovação de anúncios, login
+- **CPF único**: Não permite cadastro duplicado
+- **Email único**: Validação de unicidade
+- **Senha**: Mínimo de 6 caracteres
+- **Nome**: Não pode ser vazio
+- **Preço e KM**: Devem ser valores numéricos positivos
+- **Ano**: Validação de formato
+- **Controle de acesso**: Funcionalidades restritas por tipo de usuário
+
+## 🧪 Testes e Validação
+
+O arquivo `test.py` contém mais de 50 casos de teste automatizados cobrindo:
+
+1. **Classe Veiculo**: Criação, validações, tipos de dados
+2. **Classe Cliente**: Busca, visualização, histórico de pesquisas
+3. **Classe Anunciante**: Criação de anúncios, validações de telefone/nome
+4. **Classe Anuncio**: Aprovação, rejeição, alteração de status
+5. **Classe Admin**: Gerenciamento de usuários, aprovação de anúncios, login
+6. **Persistência**: Salvamento e recuperação de dados do SQLite
+7. **Integridade**: Constraints de banco (CPF único, email único)
 
 ## 🎓 Aprendizados do Projeto
 
@@ -225,7 +322,33 @@ Este projeto demonstra:
 - 🎭 Polimorfismo através de métodos abstratos
 - 🔗 Composição de objetos
 - ✅ Validação e tratamento de erros
+- 🗄️ Persistência de dados com SQLite
+- 🏗️ Padrão Repository para acesso a dados
+- 🔐 Controle de acesso e autenticação
 - 🧪 Testes de software
+
+## 🐛 Solução de Problemas
+
+### Erro: "UNIQUE constraint failed: usuarios.cpf"
+Este erro ocorre quando você tenta cadastrar um CPF que já existe no banco. Use um CPF diferente ou limpe o banco de dados deletando o arquivo `catalogo_veiculos.db`.
+
+### Banco de dados não inicializa
+Se o sistema não criar as tabelas automaticamente, execute:
+```bash
+python init_db.py
+```
+
+### Resetar banco de dados
+Para limpar todos os dados e recomeçar:
+```bash
+# No Windows PowerShell
+Remove-Item catalogo_veiculos.db -ErrorAction SilentlyContinue
+python demo_database.py
+```
+
+## 👥 Contribuindo
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
 
 ## 📝 Licença
 
