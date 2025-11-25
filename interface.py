@@ -465,7 +465,10 @@ class App:
         # escolher veículo existente ou criar novo
         use_existing = messagebox.askyesno('Criar Anúncio', 'Usar veículo existente?')
         if use_existing:
-            meus = [v for v in main.veiculoList if getattr(v, 'anunciante', None) == self.current_user]
+            # Buscar veículos do banco de dados
+            from repository import VeiculoRepository
+            veiculo_repo = VeiculoRepository()
+            meus = veiculo_repo.listar_por_anunciante(self.current_user.id)
             if not meus:
                 messagebox.showinfo('Criar Anúncio', 'Você não possui veículos. Crie um novo primeiro.')
                 return
@@ -488,13 +491,15 @@ class App:
             km = simpledialog.askstring('Veículo', 'Quilometragem:')
             try:
                 v = main.CreateVeiculo(marca, modelo, ano, preco, km, anunciante=self.current_user)
-                main.veiculoList.append(v)
             except Exception as e:
                 messagebox.showerror('Erro', f'Erro ao criar veículo: {e}')
                 return
-        anuncio = self.current_user.criarAnuncio(v)
-        main.anuncioList.append(anuncio)
-        messagebox.showinfo('Anúncio', f'Anúncio criado: {v.marca} {v.modelo}')
+        # Usar função que salva no banco de dados
+        try:
+            main.AnuncianteCriarAnuncio(self.current_user, v)
+            messagebox.showinfo('Anúncio', f'Anúncio criado: {v.marca} {v.modelo}')
+        except Exception as e:
+            messagebox.showerror('Erro', f'Erro ao criar anúncio: {e}')
 
     def update_main_buttons(self):
         """Show/hide main menu buttons according to the logged-in user's role."""
@@ -562,7 +567,10 @@ class App:
         top.title('Meus Veículos')
         lb = tk.Listbox(top, width=80)
         lb.pack(padx=10, pady=10)
-        meus = [v for v in main.veiculoList if getattr(v, 'anunciante', None) == self.current_user]
+        # Buscar do banco de dados
+        from repository import VeiculoRepository
+        veiculo_repo = VeiculoRepository()
+        meus = veiculo_repo.listar_por_anunciante(self.current_user.id)
         if not meus:
             lb.insert('end', 'Você não possui veículos cadastrados.')
             return
@@ -647,8 +655,6 @@ class App:
 
         try:
             v = main.CreateVeiculo(marca, modelo, ano_int, preco_f, km_int, anunciante=self.current_user)
-            if v not in main.veiculoList:
-                main.veiculoList.append(v)
             messagebox.showinfo('Veículo', f'Veículo cadastrado: {v.marca} {v.modelo}')
             self.hide_vehicle_form()
         except Exception as e:
@@ -696,16 +702,19 @@ class App:
                 return
             text = lb.get(sel[0])
             aid = int(text.split('|')[0].replace('ID:', '').strip())
-            ok = self.current_user.excluirAnuncio(aid)
-            if ok:
-                # remover global
-                ann = next((x for x in main.anuncioList if x.id == aid), None)
-                if ann:
-                    main.anuncioList.remove(ann)
+            # Buscar anúncio no banco para verificar permissão
+            from repository import AnuncioRepository
+            anuncio_repo = AnuncioRepository()
+            anuncio = anuncio_repo.buscar_por_id(aid)
+            
+            if anuncio and anuncio._anunciante == self.current_user:
+                anuncio_repo.deletar(aid)
+                # Também remover da lista interna do anunciante
+                self.current_user.excluirAnuncio(aid)
                 messagebox.showinfo('Remover', 'Anúncio removido.')
                 top.destroy()
             else:
-                messagebox.showerror('Erro', 'Não foi possível remover.')
+                messagebox.showerror('Erro', 'Anúncio não encontrado ou você não tem permissão.')
 
         tk.Button(top, text='Excluir selecionado', command=excluir).pack(pady=6)
 
@@ -729,11 +738,15 @@ class App:
                 return
             text = lb.get(sel[0])
             aid = int(text.split('|')[0].replace('ID:', '').strip())
-            anuncio = next((x for x in main.anuncioList if x.id == aid), None)
+            from repository import AnuncioRepository
+            anuncio_repo = AnuncioRepository()
+            anuncio = anuncio_repo.buscar_por_id(aid)
             if anuncio:
-                self.current_user.aprovarAnuncio(anuncio)
+                anuncio_repo.atualizar_status(aid, 'Aprovado')
                 messagebox.showinfo('Admin', 'Anúncio aprovado.')
                 top.destroy()
+            else:
+                messagebox.showerror('Erro', 'Anúncio não encontrado.')
 
         def rejeitar():
             sel = lb.curselection()
@@ -741,11 +754,15 @@ class App:
                 return
             text = lb.get(sel[0])
             aid = int(text.split('|')[0].replace('ID:', '').strip())
-            anuncio = next((x for x in main.anuncioList if x.id == aid), None)
+            from repository import AnuncioRepository
+            anuncio_repo = AnuncioRepository()
+            anuncio = anuncio_repo.buscar_por_id(aid)
             if anuncio:
-                self.current_user.rejeitarAnuncio(anuncio)
+                anuncio_repo.atualizar_status(aid, 'Rejeitado')
                 messagebox.showinfo('Admin', 'Anúncio rejeitado.')
                 top.destroy()
+            else:
+                messagebox.showerror('Erro', 'Anúncio não encontrado.')
 
         tk.Button(top, text='Aprovar selecionado', command=aprovar).pack(side='left', padx=8, pady=6)
         tk.Button(top, text='Rejeitar selecionado', command=rejeitar).pack(side='left', padx=8, pady=6)

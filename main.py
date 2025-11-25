@@ -19,6 +19,48 @@ veiculo_repo = VeiculoRepository()
 anuncio_repo = AnuncioRepository()
 cliente_repo = ClienteRepository()
 
+
+# =============================================================================
+# LISTAS VIRTUAIS PARA COMPATIBILIDADE COM INTERFACE (Delegam para repositórios)
+# =============================================================================
+
+class VirtualList:
+    """
+    Lista virtual que se comporta como uma lista mas delega para repositórios.
+    Isso mantém compatibilidade com a interface existente enquanto usa banco de dados.
+    """
+    def __init__(self, repo, list_method):
+        self.repo = repo
+        self.list_method = list_method
+    
+    def __iter__(self):
+        return iter(getattr(self.repo, self.list_method)())
+    
+    def __len__(self):
+        return len(getattr(self.repo, self.list_method)())
+    
+    def __getitem__(self, index):
+        return getattr(self.repo, self.list_method)()[index]
+    
+    def append(self, item):
+        # Não faz nada - items já são salvos pelas funções Create*
+        pass
+    
+    def remove(self, item):
+        # Não faz nada - remoção já é feita pelos repositórios
+        pass
+
+# Listas virtuais que a interface pode usar
+userList = VirtualList(usuario_repo, 'listar_todos')
+veiculoList = VirtualList(veiculo_repo, 'listar_todos')
+anuncioList = VirtualList(anuncio_repo, 'listar_todos')
+
+# Listas específicas (para compatibilidade)
+adminList = []  # Não usado pela interface, mas mantemos por compatibilidade
+anuncianteList = []
+clienteList = []
+
+
 def actions():
     print("Escolha uma Ação")
 
