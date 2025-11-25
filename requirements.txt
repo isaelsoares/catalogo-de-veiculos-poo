@@ -1,0 +1,7 @@
+# Dependências do Projeto
+
+# Python 3.10+
+# SQLite3 está incluído na biblioteca padrão do Python
+
+# Interface gráfica (opcional - apenas se usar interface.py)
+Pillow>=10.0.0
