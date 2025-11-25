@@ -5,25 +5,19 @@ from models.User import Usuario
 from models.Vehicle import Veiculo
 from models.Client import Cliente
 from typing import List
-
-adminList: list[Admin] = []    
-anuncianteList: List[Anunciante] = []
-clienteList: List[Cliente] = []
-userList = []
-veiculoList: List[Veiculo] = []
-anuncioList: List[Anuncio] = []
-
-# Criar usuário admin padrão
-admin_padrao = Admin(
-    id=1,
-    cpf="00000000000",
-    nome="Administrador",
-    email="admin@admin.com",
-    senha="admin123",
-    adminID=1
+from repository import (
+    UsuarioRepository, 
+    VeiculoRepository, 
+    AnuncioRepository,
+    ClienteRepository
 )
-adminList.append(admin_padrao)
-userList.append(admin_padrao)
+from database import Database
+
+# Inicializar repositórios
+usuario_repo = UsuarioRepository()
+veiculo_repo = VeiculoRepository()
+anuncio_repo = AnuncioRepository()
+cliente_repo = ClienteRepository()
 
 def actions():
     print("Escolha uma Ação")
@@ -39,8 +33,9 @@ def CreateAdmin(cpf, nome, email, senha, adminID) -> Admin:
         senha=senha,
         adminID=adminID   
     )
-    adminList.append(a)
-    userList.append(a)
+    # Salvar no banco de dados
+    usuario_id = usuario_repo.salvar(a, 'admin', {'admin_id': adminID})
+    a._id = usuario_id
     return a
 
 def CreateAnunciante(cpf, nome, email, senha, telefone=None) -> Anunciante: 
@@ -51,8 +46,18 @@ def CreateAnunciante(cpf, nome, email, senha, telefone=None) -> Anunciante:
         senha=senha,
         telefone=telefone
     )
-    anuncianteList.append(a)
-    return a
+    # Salvar no banco de dados
+    try:
+        usuario_id = usuario_repo.salvar(a, 'anunciante', {'telefone': telefone})
+        a._id = usuario_id
+        return a
+    except Exception as e:
+        if "UNIQUE constraint failed: usuarios.cpf" in str(e):
+            raise ValueError("CPF já cadastrado.")
+        elif "UNIQUE constraint failed: usuarios.email" in str(e):
+            raise ValueError("Email já cadastrado.")
+        else:
+            raise
 
 def CreateCliente(cpf, nome, email, senha) -> Cliente:
     c = Cliente(
@@ -61,8 +66,18 @@ def CreateCliente(cpf, nome, email, senha) -> Cliente:
                email=email,
                senha=senha
             )
-    clienteList.append(c)
-    return c
+    # Salvar no banco de dados
+    try:
+        usuario_id = usuario_repo.salvar(c, 'cliente')
+        c._id = usuario_id
+        return c
+    except Exception as e:
+        if "UNIQUE constraint failed: usuarios.cpf" in str(e):
+            raise ValueError("CPF já cadastrado.")
+        elif "UNIQUE constraint failed: usuarios.email" in str(e):
+            raise ValueError("Email já cadastrado.")
+        else:
+            raise
 
 def CreateVeiculo(marca, modelo, ano, preco, km, anunciante=None):
     v = Veiculo(
@@ -73,6 +88,10 @@ def CreateVeiculo(marca, modelo, ano, preco, km, anunciante=None):
         quilometragem=km,
         anunciante=anunciante,
     )
+    # Salvar no banco de dados
+    anunciante_id = anunciante.id if anunciante else None
+    veiculo_id = veiculo_repo.salvar(v, anunciante_id)
+    v._id = veiculo_id
     return v
 
 
@@ -95,7 +114,8 @@ def anunciante_manage_flow(current_user):
         print("0. Voltar")
         op = _input("Escolha: ").strip()
         if op == '1':
-            lista = current_user.listarMeusAnuncios()
+            # Buscar anúncios do banco de dados
+            lista = anuncio_repo.listar_por_anunciante(current_user.id)
             if not lista:
                 print("Nenhum anúncio encontrado.")
             for a in lista:
@@ -111,15 +131,13 @@ def anunciante_manage_flow(current_user):
             except Exception:
                 print("ID inválido.")
                 continue
-            ok = current_user.excluirAnuncio(aid)
-            if ok:
-                # remover da lista global de anúncios também
-                anuncio = next((x for x in anuncioList if x.id == aid), None)
-                if anuncio:
-                    anuncioList.remove(anuncio)
+            # Verificar se o anúncio pertence ao usuário
+            anuncio = anuncio_repo.buscar_por_id(aid)
+            if anuncio and anuncio._anunciante == current_user:
+                anuncio_repo.deletar(aid)
                 print("Anúncio excluído.")
             else:
-                print("Anúncio não encontrado ou erro.")
+                print("Anúncio não encontrado ou você não tem permissão.")
         elif op == '0':
             break
         else:
@@ -132,18 +150,29 @@ def search_announcements(current_user):
         print("Acesso negado. Apenas clientes.")
         return
     filtro = _input("Filtro (marca/modelo): ").strip()
-    resultados = [a for a in anuncioList if filtro.lower() in a.veiculo.marca.lower() or filtro.lower() in a.veiculo.modelo.lower()]
+    
+    # Salvar pesquisa no histórico
+    if hasattr(current_user, 'id'):
+        cliente_repo.salvar_pesquisa(current_user.id, filtro)
+    
+    # Buscar veículos no banco
+    veiculos_encontrados = veiculo_repo.buscar(filtro)
+    
+    # Buscar anúncios aprovados desses veículos
+    todos_anuncios = anuncio_repo.listar_por_status("Aprovado")
+    resultados = [a for a in todos_anuncios if a.veiculo.id in [v.id for v in veiculos_encontrados]]
+    
     if not resultados:
         print("Nenhum anúncio encontrado.")
         return
     for a in resultados:
         v = a.veiculo
-        print(f"ID anúncio:{a.id} | Veículo: {v.marca} {v.modelo} ({v.ano}) | Anunciante: {getattr(a.anunciante,'nome','Desconhecido')} | Status: {a.status}")
+        print(f"ID anúncio:{a.id} | Veículo: {v.marca} {v.modelo} ({v.ano}) | Status: {a.status}")
     escolha = _input("Ver detalhes do anúncio ID? (vazio para voltar): ").strip()
     if escolha:
         try:
             aid = int(escolha)
-            a = next((x for x in anuncioList if x.id == aid), None)
+            a = anuncio_repo.buscar_por_id(aid)
             if a:
                 print(a.exibirResumo())
             else:
@@ -165,12 +194,12 @@ def admin_manage_flow(current_user):
         print("0. Voltar")
         op = _input("Escolha: ").strip()
         if op == '1':
-            pendentes = [a for a in anuncioList if a.status.lower() == 'pendente']
+            pendentes = anuncio_repo.listar_por_status('Pendente')
             if not pendentes:
                 print("Nenhum anúncio pendente.")
             for a in pendentes:
                 v = a.veiculo
-                print(f"ID:{a.id} | {v.marca} {v.modelo} ({v.ano}) | Anunciante: {getattr(a.anunciante,'nome', 'Desconhecido')}")
+                print(f"ID:{a.id} | {v.marca} {v.modelo} ({v.ano})")
         elif op in ('2', '3'):
             id_str = _input("ID do anúncio: ").strip()
             try:
@@ -178,38 +207,31 @@ def admin_manage_flow(current_user):
             except Exception:
                 print("ID inválido.")
                 continue
-            anuncio = next((x for x in anuncioList if x.id == aid), None)
+            anuncio = anuncio_repo.buscar_por_id(aid)
             if not anuncio:
                 print("Anúncio não encontrado.")
                 continue
             if op == '2':
-                current_user.aprovarAnuncio(anuncio)
+                anuncio_repo.atualizar_status(aid, 'Aprovado')
                 print("Anúncio aprovado.")
             else:
-                current_user.rejeitarAnuncio(anuncio)
+                anuncio_repo.atualizar_status(aid, 'Rejeitado')
                 print("Anúncio rejeitado.")
         elif op == '4':
             print("Usuários cadastrados:")
-            for idx, u in enumerate(userList, start=1):
-                print(f"{idx}. {getattr(u,'nome', repr(u))} ({u.__class__.__name__})")
-            escolha = _input("Excluir usuário número (vazio para voltar): ").strip()
+            usuarios = usuario_repo.listar_todos()
+            for idx, u in enumerate(usuarios, start=1):
+                print(f"{idx}. {u.nome} ({u.__class__.__name__}) - ID: {u.id}")
+            escolha = _input("Excluir usuário ID (vazio para voltar): ").strip()
             if not escolha:
                 continue
             try:
-                ui = int(escolha)-1
-                usuario = userList[ui]
+                uid = int(escolha)
             except Exception:
                 print("Escolha inválida.")
                 continue
-            msg = current_user.gerenciarUsuario('deletar', usuario, None, userList)
-            # também remover de listas específicas
-            if usuario in anuncianteList:
-                anuncianteList.remove(usuario)
-            if usuario in clienteList:
-                clienteList.remove(usuario)
-            if usuario in adminList:
-                adminList.remove(usuario)
-            print(msg)
+            usuario_repo.deletar(uid)
+            print(f"Usuário ID {uid} removido.")
         elif op == '0':
             break
         else:
@@ -217,18 +239,23 @@ def admin_manage_flow(current_user):
 
 def Login(email, senha):
     # Retorna o objeto de usuário quando login bem-sucedido, senão None
-    for i in userList:
-        # usa o método `login` definido em Usuario
-        try:
-            if hasattr(i, 'login') and i.login(email, senha):
-                return i
-        except Exception:
-            continue
+    resultado = usuario_repo.buscar_por_email(email)
+    if not resultado:
+        return None
+    
+    usuario, tipo = resultado
+    if hasattr(usuario, 'login') and usuario.login(email, senha):
+        # Atualizar status de logado no banco
+        usuario_repo.atualizar(usuario.id, {'logado': 1})
+        return usuario
+    
     return None
     
 def AnuncianteCriarAnuncio(anunciante, carro):
     a = anunciante.criarAnuncio(carro)
-    anuncioList.append(a)
+    # Salvar no banco de dados
+    anuncio_id = anuncio_repo.salvar(a, carro.id, anunciante.id)
+    a._id = anuncio_id
     return f"Anuncio Criado Carro: {a.veiculo.marca} {a.veiculo.modelo}"
 
 
@@ -247,15 +274,18 @@ def register_user_flow():
     email = _input("Email: ").strip()
     senha = _input("Senha: ").strip()
     telefone = None
-    if tipo == '1':
-        telefone = _input("Telefone (opcional): ").strip() or None
-        user = CreateAnunciante(cpf, nome, email, senha, telefone)
-        userList.append(user)
-        print("Anunciante cadastrado com sucesso.")
-    else:
-        user = CreateCliente(cpf, nome, email, senha)
-        userList.append(user)
-        print("Cliente cadastrado com sucesso.")
+    try:
+        if tipo == '1':
+            telefone = _input("Telefone (opcional): ").strip() or None
+            user = CreateAnunciante(cpf, nome, email, senha, telefone)
+            print("Anunciante cadastrado com sucesso.")
+        else:
+            user = CreateCliente(cpf, nome, email, senha)
+            print("Cliente cadastrado com sucesso.")
+    except ValueError as e:
+        print(f"✗ Erro no cadastro: {e}")
+    except Exception as e:
+        print(f"✗ Erro inesperado: {e}")
 
 
 def login_flow():
@@ -289,7 +319,7 @@ def create_ad_flow(current_user):
     # Permitir usar um veículo já cadastrado ou criar novo
     escolha = _input("Usar veículo existente? (s/n): ").strip().lower()
     if escolha == 's':
-        meus = [v for v in veiculoList if getattr(v, 'anunciante', None) == current_user]
+        meus = veiculo_repo.listar_por_anunciante(current_user.id)
         if not meus:
             print("Você não possui veículos cadastrados. Crie um novo.")
             v = None
@@ -311,7 +341,6 @@ def create_ad_flow(current_user):
         km = _input("Quilometragem: ").strip()
         try:
             v = CreateVeiculo(marca, modelo, ano, preco, km, anunciante=current_user)
-            veiculoList.append(v)
         except Exception as e:
             print("Erro ao criar veículo:", e)
             return
@@ -321,14 +350,14 @@ def create_ad_flow(current_user):
 
 def list_announcements():
     print("--- Anúncios ---")
-    if not anuncioList:
+    anuncios = anuncio_repo.listar_todos()
+    if not anuncios:
         print("Nenhum anúncio cadastrado.")
         return
-    for a in anuncioList:
+    for a in anuncios:
         try:
-            anunciante_nome = getattr(a.anunciante, 'nome', 'Desconhecido')
             veic = a.veiculo
-            print(f"Anunciante: {anunciante_nome} | Veículo: {veic.marca} {veic.modelo} ({veic.ano}) | Preço: {veic.preco}")
+            print(f"ID: {a.id} | Veículo: {veic.marca} {veic.modelo} ({veic.ano}) | Preço: {veic.preco} | Status: {a.status}")
         except Exception:
             print(repr(a))
 
@@ -338,7 +367,7 @@ def list_my_vehicles(current_user):
     if not current_user or not hasattr(current_user, 'criarAnuncio'):
         print("Acesso negado. Apenas anunciantes.")
         return
-    meus = [v for v in veiculoList if getattr(v, 'anunciante', None) == current_user]
+    meus = veiculo_repo.listar_por_anunciante(current_user.id)
     if not meus:
         print("Você não possui veículos cadastrados.")
         return
@@ -381,7 +410,6 @@ def main():
                 km = _input("Quilometragem: ").strip()
                 try:
                     v = CreateVeiculo(marca, modelo, ano, preco, km, anunciante=current_user)
-                    veiculoList.append(v)
                     print(f"Veículo criado: {v.marca} {v.modelo}")
                 except Exception as e:
                     print("Erro ao criar veículo:", e)
@@ -398,6 +426,8 @@ def main():
         elif opc == '10':
             admin_manage_flow(current_user)
         elif opc == '7':
+            if current_user:
+                usuario_repo.atualizar(current_user.id, {'logado': 0})
             current_user = None
             print("Desconectado.")
         elif opc == '0':
@@ -408,5 +438,18 @@ def main():
 
 
 if __name__ == '__main__':
+    # Inicializar banco de dados se não existir
+    db = Database()
+    try:
+        db.create_tables()
+        # Verificar se admin existe
+        admin = db.fetch_one("SELECT id FROM usuarios WHERE email = ?", ("admin@admin.com",))
+        if not admin:
+            print("⚠️  Banco de dados não inicializado. Execute: python init_db.py")
+        else:
+            print("✓ Banco de dados carregado com sucesso!")
+    except Exception as e:
+        print(f"Erro ao conectar ao banco: {e}")
+    
     main()
 
